@@ -1,1 +1,1 @@
-# dynamical-friction
+# Dynamical Friction
