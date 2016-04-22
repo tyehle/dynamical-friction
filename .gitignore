@@ -1,7 +1,5 @@
-/out/
-/target/
+/build/
+/elm-stuff/
 
 *.sublime-project
 *.sublime-workspace
-
-.nrepl-history
