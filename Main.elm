@@ -3,6 +3,7 @@ import Graphics.Collage exposing (..)
 import Graphics.Element exposing (..)
 import Time exposing (..)
 import Random exposing (Generator, Seed, generate)
+import Window exposing (width, height)
 
 type alias World = ( State, List State )
 
@@ -21,33 +22,37 @@ type alias Position = (Float, Float)
 g : Float
 g = 0.00002
 
-width : Float
-width = 800
-
-height : Float
-height = 800
-
 particleMass : Float
 particleMass = 0.5
 
 attractorMass : Float
 attractorMass = 10
 
-attractorX : Float
-attractorX = 0
-
-attractorY : Float
-attractorY = 0
-
 
 main : Signal Element
-main =
+main = Signal.map2 draw Window.dimensions simulate
+
+
+ball : State -> Form
+ball s =
+  filled s.color (circle s.size)
+    |> move (s.x, s.y)
+
+
+draw : (Int, Int) -> World -> Element
+draw (width, height) (mass, particles) =
+  collage width height
+    (filled charcoal (rect (toFloat width) (toFloat height)) :: (filled lightBlue (rect 5 5)) :: List.map ball (mass :: particles))
+
+
+
+simulate : Signal World
+simulate =
   let
-    mass  = { x = -200, y = 0, vx = 0.02, vy = 0, size = 20, color = darkPurple }
+    mass  = { x = -200, y = 0, vx = 0.02, vy = 0, size = 20, color = lightPurple }
     start = genParticles 50 (Random.initialSeed 2) []
-    accumulated = Signal.foldp gravitateAll (mass, start) (fps 60)
   in
-    Signal.map draw accumulated
+    Signal.foldp gravitateAll (mass, start) (fps 60)
 
 genParticles : Int -> Seed -> List State -> List State
 genParticles n s ps =
@@ -76,22 +81,9 @@ genParticle s0 =
     x = r * cos t
     y = r * sin t
 
-    p = { x = x, y = y, vx = vx, vy = vy, size = 5, color = charcoal }
+    p = { x = x, y = y, vx = vx, vy = vy, size = 3, color = grey }
   in
     (p, s4)
-
-
-
-ball : State -> Form
-ball s =
-  filled s.color (circle s.size)
-    |> move (s.x, s.y)
-
-
-draw : World -> Element
-draw (mass, particles) =
-  collage (round width) (round height)
-    (filled darkGrey (rect width height) :: (filled grey (rect 5 5)) :: List.map ball (mass :: particles))
 
 
 
@@ -139,8 +131,8 @@ mapWithIndex fn items =
 acceleration : Time -> Position -> Mass -> State -> Position
 acceleration t (x, y) m s =
   let
-    dx  = s.x - attractorX
-    dy  = s.y - attractorY
+    dx  = s.x - x
+    dy  = s.y - y
     rSq = (abs dx) + (abs dy)
     a   = -g * attractorMass / rSq
     r   = sqrt rSq
