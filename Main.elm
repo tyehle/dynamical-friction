@@ -4,6 +4,8 @@ import Graphics.Element exposing (..)
 import Time exposing (..)
 import Random exposing (Generator, Seed, generate)
 
+type alias World = ( State, List State )
+
 type alias State = { x : Float
                    , y : Float
                    , vx : Float
@@ -41,9 +43,9 @@ attractorY = 0
 main : Signal Element
 main =
   let
-  --{ x = -200, y = 0, vx = 0.02, vy = -0.02, size = 20, color = darkPurple }
+    mass  = { x = -200, y = 0, vx = 0.02, vy = 0, size = 20, color = darkPurple }
     start = genParticles 50 (Random.initialSeed 2) []
-    accumulated = Signal.foldp gravitateAll start (fps 60)
+    accumulated = Signal.foldp gravitateAll (mass, start) (fps 60)
   in
     Signal.map draw accumulated
 
@@ -86,22 +88,22 @@ ball s =
     |> move (s.x, s.y)
 
 
-draw : List State -> Element
-draw states =
+draw : World -> Element
+draw (mass, particles) =
   collage (round width) (round height)
-    (filled darkGrey (rect width height) :: (filled grey (rect 5 5)) :: List.map ball states)
+    (filled darkGrey (rect width height) :: (filled grey (rect 5 5)) :: List.map ball (mass :: particles))
 
 
 
-gravitateAll : Time -> List State -> List State
-gravitateAll t states =
+gravitateAll : Time -> World -> World
+gravitateAll t (mass, particles) =
   --List.map (gravitate t (attractorX, attractorY) attractorMass) states
   let
-    center = findCenter states
-    centered = List.map (recenter center) states
+    center = findCenter particles
+    centered = List.map (recenter center) particles
     sorted = List.sortBy (distance center) centered
   in
-    nbody t center sorted
+    nbody t center (mass, sorted)
 
 recenter : Position -> State -> State
 recenter (dx, dy) s = { s | x = s.x - dx, y = s.y - dy }
@@ -119,12 +121,12 @@ findCenter states =
     (x, y)
 
 -- The list of particles should be sorted by distance from the center
-nbody : Time -> Position -> List State -> List State
-nbody t center particles =
+nbody : Time -> Position -> World -> World
+nbody t center (mass, particles) =
   let
     updateParticle s n = gravitate t center ((toFloat n)*particleMass) s
   in
-    mapWithIndex updateParticle particles
+    (mass, mapWithIndex updateParticle particles)
 
 mapWithIndex : (a -> Int -> b) -> List a -> List b
 mapWithIndex fn items =
@@ -134,8 +136,8 @@ mapWithIndex fn items =
   in
     fst folded
 
-gravitate : Time -> Position -> Mass -> State -> State
-gravitate t (attractorX, attractorY) attractorMass s =
+acceleration : Time -> Position -> Mass -> State -> Position
+acceleration t (x, y) m s =
   let
     dx  = s.x - attractorX
     dy  = s.y - attractorY
@@ -144,6 +146,13 @@ gravitate t (attractorX, attractorY) attractorMass s =
     r   = sqrt rSq
     ax  = a * dx / r
     ay  = a * dy / r
+  in
+    (ax, ay)
+
+gravitate : Time -> Position -> Mass -> State -> State
+gravitate t pos attractorMass s =
+  let
+    (ax, ay) = acceleration t pos attractorMass s
 
     vx' = s.vx + ax*t
     x'  = s.x + (s.vx + vx')/2*t
