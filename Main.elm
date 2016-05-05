@@ -11,6 +11,10 @@ type alias State = { x : Float
                    , color : Color
                    }
 
+type alias Mass = Float
+
+type alias Position = (Float, Float)
+
 g : Float
 g = 0.00002
 
@@ -19,6 +23,9 @@ width = 800
 
 height : Float
 height = 800
+
+particleMass : Float
+particleMass = 0.001
 
 attractorMass : Float
 attractorMass = 10
@@ -54,15 +61,30 @@ ball s =
 draw : List State -> Element
 draw states =
   collage (round width) (round height)
-    (filled darkGrey (rect width height) :: List.map ball states)
+    (filled darkGrey (rect width height) :: (filled grey (rect 5 5)) :: List.map ball states)
 
 
 gravitateAll : Time -> List State -> List State
-gravitateAll t states = List.map (gravitate t) states
+gravitateAll t states = List.map (gravitate t (attractorX, attractorY) attractorMass) states
 
+-- The list of particles should be sorted by distance from the center
+nbody : Time -> List State -> (Float, Float) -> List State
+nbody t particles center =
+  let
+    updateParticle s n = gravitate t center ((toFloat n)*particleMass) s
+  in
+    mapWithIndex updateParticle particles
 
-gravitate : Time -> State -> State
-gravitate t s =
+mapWithIndex : (a -> Int -> b) -> List a -> List b
+mapWithIndex fn items =
+  let
+    op item (res, index) = (fn item index :: res, index + 1)
+    folded = List.foldl op ([], 0) items
+  in
+    fst folded
+
+gravitate : Time -> Position -> Mass -> State -> State
+gravitate t (attractorX, attractorY) attractorMass s =
   let
     dx  = s.x - attractorX
     dy  = s.y - attractorY
@@ -73,10 +95,10 @@ gravitate t s =
     ay  = a * dy / r
 
     vx' = s.vx + ax*t
-    x'  = s.x + vx'*t
+    x'  = s.x + (s.vx + vx')/2*t
 
     vy' = s.vy + ay*t
-    y'  = s.y + vy'*t
+    y'  = s.y + (s.vy+vy')/2*t
   in
     { s | x = x'
         , y = y'
