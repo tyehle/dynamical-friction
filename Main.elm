@@ -26,7 +26,7 @@ height : Float
 height = 800
 
 particleMass : Float
-particleMass = 10
+particleMass = 0.5
 
 attractorMass : Float
 attractorMass = 10
@@ -42,32 +42,37 @@ main : Signal Element
 main =
   let
   --{ x = -200, y = 0, vx = 0.02, vy = -0.02, size = 20, color = darkPurple }
-    start = [ { x = 200, y = 0,  vx = 0.02, vy = 0.04, size = 5, color = charcoal }
-            , { x = 200, y = 20, vx = -0.02, vy = 0.04, size = 5, color = charcoal }
-            , { x = 200, y = 40, vx = 0.02, vy = 0.04, size = 5, color = charcoal }
-            , { x = 200, y = 60, vx = -0.02, vy = 0.04, size = 5, color = charcoal }
-            , { x = 200, y = 80, vx = 0.02, vy = 0.04, size = 5, color = charcoal }
-            , { x = -100, y = 0,  vx = -0.02, vy = -0.04, size = 5, color = charcoal }
-            , { x = -100, y = 20, vx = 0.02, vy = -0.04, size = 5, color = charcoal }
-            , { x = -50, y = 40, vx = -0.02, vy = -0.04, size = 5, color = charcoal }
-            , { x = -100, y = 60, vx = 0.02, vy = -0.04, size = 5, color = charcoal }
-            , { x = -100, y = 80, vx = -0.02, vy = -0.04, size = 5, color = charcoal }
-            ]
+    start = genParticles 50 (Random.initialSeed 2) []
     accumulated = Signal.foldp gravitateAll start (fps 60)
   in
     Signal.map draw accumulated
 
+genParticles : Int -> Seed -> List State -> List State
+genParticles n s ps =
+  if n <= 0 then
+    ps
+  else
+    let
+      (p, s') = genParticle s
+    in
+      genParticles (n-1) s' (p :: ps)
 
-genParticle : Random.Seed -> (State, Random.Seed)
+genParticle : Seed -> (State, Seed)
 genParticle s0 =
   let
+    theta = Random.float 0 (2*pi)
+
     v = Random.float -0.05 0.05
-    (vx, s1) = generate v s0
-    (vy, s2) = generate v s1
+    (vr, s1) = generate v s0
+    (vt, s2) = generate theta s1
+    vx = vr * cos vt
+    vy = vr * sin vt
 
     pos = Random.float -200 200
-    (x, s3) = generate pos s2
-    (y, s4) = generate pos s3
+    (r, s3) = generate pos s2
+    (t, s4) = generate theta s3
+    x = r * cos t
+    y = r * sin t
 
     p = { x = x, y = y, vx = vx, vy = vy, size = 5, color = charcoal }
   in
