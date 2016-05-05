@@ -91,17 +91,14 @@ gravitateAll : Time -> World -> World
 gravitateAll t (mass, particles) =
   --List.map (gravitate t (attractorX, attractorY) attractorMass) states
   let
+    recenter (dx, dy) s = { s | x = s.x - dx, y = s.y - dy }
+    distance (x, y) s = sqrt ((x - s.x)*(x - s.x) + (y - s.y)*(y - s.y))
+
     center = findCenter particles
     centered = List.map (recenter center) particles
     sorted = List.sortBy (distance center) centered
   in
     nbody t center (mass, sorted)
-
-recenter : Position -> State -> State
-recenter (dx, dy) s = { s | x = s.x - dx, y = s.y - dy }
-
-distance : Position -> State -> Float
-distance (x, y) s = sqrt ((x - s.x)*(x - s.x) + (y - s.y)*(y - s.y))
 
 findCenter : List State -> Position
 findCenter states =
@@ -116,7 +113,7 @@ findCenter states =
 nbody : Time -> Position -> World -> World
 nbody t center (mass, particles) =
   let
-    updateParticle s n = gravitate t center ((toFloat n)*particleMass) s
+    updateParticle s n = accelerate t (acceleration t center ((toFloat n)*particleMass) s) s
   in
     (mass, mapWithIndex updateParticle particles)
 
@@ -141,11 +138,9 @@ acceleration t (x, y) m s =
   in
     (ax, ay)
 
-gravitate : Time -> Position -> Mass -> State -> State
-gravitate t pos attractorMass s =
+accelerate : Time -> Position -> State -> State
+accelerate t (ax, ay) s =
   let
-    (ax, ay) = acceleration t pos attractorMass s
-
     vx' = s.vx + ax*t
     x'  = s.x + (s.vx + vx')/2*t
 
