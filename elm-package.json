@@ -4,9 +4,11 @@
     "repository": "https://github.com/tyehle/dynamical-friction.git",
     "license": "BSD3",
     "source-directories": [
-        "."
+        ".",
+        "libs"
     ],
-    "exposed-modules": [],
+    "exposed-modules": ["Audio"],
+    "native-modules": true,
     "dependencies": {
         "elm-lang/core": "3.0.0 <= v < 4.0.0"
     },
