@@ -5,15 +5,15 @@ import Time exposing (..)
 import Random exposing (Generator, Seed, generate)
 import Window exposing (width, height)
 
-type alias World = ( State, List State )
+type alias World = ( Particle, List Particle )
 
-type alias State = { x : Float
-                   , y : Float
-                   , vx : Float
-                   , vy : Float
-                   , size : Float
-                   , color : Color
-                   }
+type alias Particle = { x : Float
+                      , y : Float
+                      , vx : Float
+                      , vy : Float
+                      , size : Float
+                      , color : Color
+                      }
 
 type alias Mass = Float
 
@@ -26,14 +26,14 @@ particleMass : Float
 particleMass = 0.5
 
 attractorMass : Float
-attractorMass = 10
+attractorMass = 1
 
 
 main : Signal Element
 main = Signal.map2 draw Window.dimensions simulate
 
 
-ball : State -> Form
+ball : Particle -> Form
 ball s =
   filled s.color (circle s.size)
     |> move (s.x, s.y)
@@ -54,7 +54,7 @@ simulate =
   in
     Signal.foldp gravitateAll (mass, start) (fps 60)
 
-genParticles : Int -> Seed -> List State -> List State
+genParticles : Int -> Seed -> List Particle -> List Particle
 genParticles n s ps =
   if n <= 0 then
     ps
@@ -64,7 +64,7 @@ genParticles n s ps =
     in
       genParticles (n-1) s' (p :: ps)
 
-genParticle : Seed -> (State, Seed)
+genParticle : Seed -> (Particle, Seed)
 genParticle s0 =
   let
     theta = Random.float 0 (2*pi)
@@ -89,7 +89,7 @@ genParticle s0 =
 
 gravitateAll : Time -> World -> World
 gravitateAll t (mass, particles) =
-  --List.map (gravitate t (attractorX, attractorY) attractorMass) states
+  --List.map (gravitate t (attractorX, attractorY) attractorMass) particles
   let
     recenter (dx, dy) s = { s | x = s.x - dx, y = s.y - dy }
     distance (x, y) s = sqrt ((x - s.x)*(x - s.x) + (y - s.y)*(y - s.y))
@@ -100,12 +100,12 @@ gravitateAll t (mass, particles) =
   in
     nbody t center (mass, sorted)
 
-findCenter : List State -> Position
-findCenter states =
+findCenter : List Particle -> Position
+findCenter particles =
   let
-    n = toFloat ( List.length states )
-    x = List.sum ( List.map .x states ) / n
-    y = List.sum ( List.map .y states ) / n
+    n = toFloat ( List.length particles )
+    x = List.sum ( List.map .x particles ) / n
+    y = List.sum ( List.map .y particles ) / n
   in
     (x, y)
 
@@ -113,19 +113,43 @@ findCenter states =
 nbody : Time -> Position -> World -> World
 nbody t center (mass, particles) =
   let
-    updateParticle s n = accelerate t (acceleration t center ((toFloat n)*particleMass) s) s
+    newMass = updateMass t particles mass
+    newParticles = mapWithIndex (updateParticle t center mass) particles
   in
-    (mass, mapWithIndex updateParticle particles)
+    (newMass, newParticles)
 
-mapWithIndex : (a -> Int -> b) -> List a -> List b
+
+updateMass : Time -> List Particle -> Particle -> Particle
+updateMass t particles attractor =
+  let
+    accelForParticle p = acceleration t (p.x, p.y) particleMass attractor
+    totalAccel = List.foldl (\p a -> positionAdd a (accelForParticle p)) (0, 0) particles
+  in
+    accelerate t totalAccel attractor
+
+
+updateParticle : Time -> Position -> Particle -> Int -> Particle -> Particle
+updateParticle t center mass n s =
+  let
+    pa = acceleration t center ((toFloat n)*particleMass) s
+    ma = acceleration t (mass.x, mass.y) attractorMass s
+  in
+    accelerate t (positionAdd pa ma) s
+
+
+positionAdd : Position -> Position -> Position
+positionAdd (ax, ay) (bx, by) = (ax+bx, ay+by)
+
+mapWithIndex : (Int -> a -> b) -> List a -> List b
 mapWithIndex fn items =
   let
-    op item (res, index) = (fn item index :: res, index + 1)
-    folded = List.foldl op ([], 0) items
+    op item (index, res) = (index + 1, fn index item :: res)
+    folded = List.foldl op (0, []) items
   in
-    fst folded
+    snd folded
 
-acceleration : Time -> Position -> Mass -> State -> Position
+
+acceleration : Time -> Position -> Mass -> Particle -> Position
 acceleration t (x, y) m s =
   let
     dx  = s.x - x
@@ -138,7 +162,7 @@ acceleration t (x, y) m s =
   in
     (ax, ay)
 
-accelerate : Time -> Position -> State -> State
+accelerate : Time -> Position -> Particle -> Particle
 accelerate t (ax, ay) s =
   let
     vx' = s.vx + ax*t
