@@ -26,7 +26,7 @@ particleMass : Float
 particleMass = 0.5
 
 attractorMass : Float
-attractorMass = 1
+attractorMass = 2
 
 
 main : Signal Element
