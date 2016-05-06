@@ -4,10 +4,6 @@ import Graphics.Element exposing (..)
 import Time exposing (..)
 import Random exposing (Generator, Seed, generate)
 import Window exposing (width, height)
-import Char exposing (toCode)
-import Keyboard exposing (presses)
-import Text exposing (fromString)
-import Audio exposing (defaultTriggers)
 
 type alias World = ( Particle, List Particle )
 
@@ -34,7 +30,7 @@ attractorMass = 2
 
 
 main : Signal Element
-main = Signal.map3 draw audioBuilder Window.dimensions simulate
+main = Signal.map2 draw Window.dimensions simulate
 
 
 ball : Particle -> Form
@@ -43,46 +39,15 @@ ball s =
     |> move (s.x, s.y)
 
 
-draw : (Audio.Event, Audio.Properties) -> (Int, Int) -> World -> Element
-draw _ (width, height) (mass, particles) =
+draw : (Int, Int) -> World -> Element
+draw (width, height) (mass, particles) =
   let
     background = filled charcoal (rect (toFloat width) (toFloat height))
     centerMark = filled lightBlue (rect 5 5)
-    text = Text.fromString "Press 'm' to toggle music"
-      |> leftAligned
-      |> toForm
-      |> move (-(toFloat width)/2 + 90, (toFloat height)/2 - 15)
     particleCircles = List.map ball (mass :: particles)
   in
     collage width height
-      (background :: text :: centerMark :: particleCircles)
-
-
-music : Signal Bool
-music =
-  let
-    update key playing = if key == Char.toCode 'm' then not playing else playing
-  in
-    Signal.foldp update True Keyboard.presses
-
-handleAudio : Bool -> Audio.Action
-handleAudio playing =
-    if playing then Audio.Play
-    else Audio.Pause
-
-loopingHandler : Audio.Properties -> Maybe Audio.Action
-loopingHandler props =
-  if props.currentTime >= 323.5 then
-    Just (Audio.Seek 0)
-  else
-    Nothing
-
-audioBuilder : Signal (Audio.Event, Audio.Properties)
-audioBuilder = Audio.audio { src = "sound/lux-et-lapis.mp3",
-                             triggers = { defaultTriggers | timeupdate = True },
-                             propertiesHandler = loopingHandler,
-                             actions = Signal.map handleAudio music
-                           }
+      (background :: centerMark :: particleCircles)
 
 
 
