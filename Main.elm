@@ -1,6 +1,6 @@
 import Color exposing (..)
-import Graphics.Collage exposing (..)
-import Graphics.Element exposing (..)
+import Collage exposing (..)
+import Element exposing (..)
 import Time exposing (..)
 import Random exposing (Generator, Seed, generate)
 import Window exposing (width, height)
