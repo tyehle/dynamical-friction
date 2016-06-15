@@ -4,63 +4,50 @@ import Element exposing (..)
 import Time exposing (..)
 import Random exposing (Generator, Seed, generate)
 import Window exposing (width, height)
+import AnimationFrame
+import Html.App as App
+import Html
+import Task
 
-type alias World = ( Particle, List Particle )
+type alias World = { attractor : Particle
+                   , particles : List Particle
+                   }
 
-type alias Particle = { x : Float
-                      , y : Float
-                      , vx : Float
-                      , vy : Float
+type alias Particle = { pos : Vec2
+                      , velocity : Vec2
                       , size : Float
+                      , mass : Mass
                       , color : Color
                       }
 
 type alias Mass = Float
 
-type alias Position = (Float, Float)
+type alias Vec2 = { x : Float, y : Float }
+
+type Message = Step Time | Resize Window.Size
+
 
 g : Float
 g = 0.00002
 
-particleMass : Float
-particleMass = 0.5
-
-attractorMass : Float
-attractorMass = 2
 
 
-main : Signal Element
-main = Signal.map2 draw Window.dimensions simulate
+-- INIT --
 
-
-ball : Particle -> Form
-ball s =
-  filled s.color (circle s.size)
-    |> move (s.x, s.y)
-
-
-draw : (Int, Int) -> World -> Element
-draw (width, height) (mass, particles) =
+init : (World, Cmd Message)
+init = 
   let
-    background = filled charcoal (rect (toFloat width) (toFloat height))
-    centerMark = filled lightBlue (rect 5 5)
-    particleCircles = List.map ball (mass :: particles)
+    mass  = { pos = {x=-200, y=0}, velocity = {x=0.02, y=0}, mass = 2, size = 20, color = lightPurple }
+    particles = genParticles 50 (Random.initialSeed 2)
+    initialResize = Task.perform (\_ -> Resize {x=800, y=800}) Resize Window.size
   in
-    collage width height
-      (background :: centerMark :: particleCircles)
+    ({attractor = mass, particles = particles}, Cmd.none)
 
+genParticles : Int -> Seed -> List Particle
+genParticles = genParticlesAccumulated []
 
-
-simulate : Signal World
-simulate =
-  let
-    mass  = { x = -200, y = 0, vx = 0.02, vy = 0, size = 20, color = lightPurple }
-    start = genParticles 50 (Random.initialSeed 2) []
-  in
-    Signal.foldp gravitateAll (mass, start) (fps 60)
-
-genParticles : Int -> Seed -> List Particle -> List Particle
-genParticles n s ps =
+genParticlesAccumulated : List Particle -> Int -> Seed -> List Particle
+genParticlesAccumulated n s ps =
   if n <= 0 then
     ps
   else
@@ -86,9 +73,50 @@ genParticle s0 =
     x = r * cos t
     y = r * sin t
 
-    p = { x = x, y = y, vx = vx, vy = vy, size = 3, color = grey }
+    p = { pos = {x=x, y=y}, velocity = {x=vx, y=vy}, mass = 0.5, size = 3, color = grey }
   in
     (p, s4)
+
+
+
+--main : Signal Element
+--main = Signal.map2 draw Window.dimensions simulate
+
+main : Program Never
+main = App.program { init = init
+                   , update = update
+                   , view = view
+                   , subscriptions = subscriptions
+                   }
+
+
+ball : Particle -> Form
+ball s =
+  filled s.color (circle s.size)
+    |> move (s.x, s.y)
+
+
+draw : (Int, Int) -> World -> Element
+draw (width, height) (mass, particles) =
+  let
+    background = filled charcoal (rect (toFloat width) (toFloat height))
+    centerMark = filled lightBlue (rect 5 5)
+    particleCircles = List.map ball (mass :: particles)
+  in
+    collage width height
+      (background :: centerMark :: particleCircles)
+
+
+
+simulate : Signal World
+simulate =
+  let
+    mass  = { pos = {x=-200, y=0}, velocity = {x=0.02, y=0}, mass = 2, size = 20, color = lightPurple }
+    particles = genParticles 50 (Random.initialSeed 2)
+  in
+    Signal.foldp gravitateAll { attractor = mass, particles = particles } (fps 60)
+
+
 
 
 
